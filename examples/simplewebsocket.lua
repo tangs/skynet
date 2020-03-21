@@ -1,10 +1,14 @@
+package.path = package.path .. ";lualib/?.lua;examples/?.lua;test/?.lua"
+
 local skynet = require "skynet"
 local socket = require "skynet.socket"
 local service = require "skynet.service"
 local websocket = require "http.websocket"
+local json = require "json"
 
 local handle = {}
 local MODE = ...
+-- local serviceLogin
 
 if MODE == "agent" then
     function handle.connect(id)
@@ -22,7 +26,23 @@ if MODE == "agent" then
     end
 
     function handle.message(id, msg)
-        websocket.write(id, msg)
+        print("received msg:" .. msg)
+        local data = json.decode(msg)
+        print("cmd:" .. data.cmd)
+        serviceLogin = skynet.newservice("test/login")
+        if serviceLogin ~= nil then
+            local ret = skynet.call(serviceLogin, "lua", data)
+            local res = {}
+            if ret then
+                res.ret_code = 0
+                res.err_msg = ""
+            else
+                res.ret_code = 1
+                res.err_msg = "invalid password."
+            end
+            websocket.write(id, json.encode(res))
+        end
+        -- websocket.write(id, "ret:" .. msg)
     end
 
     function handle.ping(id)
@@ -89,6 +109,7 @@ else
             end
         end)
         -- test echo client
-        service.new("websocket_echo_client", simple_echo_client_service, protocol)
+        -- service.new("websocket_echo_client", simple_echo_client_service, protocol)
+        -- serviceLogin = skynet.newservice("test/login")
     end)
 end
