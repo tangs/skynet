@@ -31,7 +31,7 @@ if MODE == "agent" then
         print("cmd:" .. data.cmd)
         serviceLogin = skynet.newservice("test/login")
         if serviceLogin ~= nil then
-            local ret = skynet.call(serviceLogin, "lua", data)
+            local ret = skynet.call(serviceLogin, "lua", data.cmd, data)
             local res = {}
             if ret then
                 res.ret_code = 0

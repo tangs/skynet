@@ -2,12 +2,22 @@ local skynet = require "skynet"
 require "skynet.manager"
 
 function dispatcher()
-    skynet.dispatch("lua", function(_, _, data)
-        local ret = false
-        print(data.name, data.pwd)
-        if data and data.name and data.name:len() > 0 and data.name == data.pwd then ret = true end
-        skynet.ret(skynet.pack(ret))
-        skynet.exit()
+    skynet.dispatch("lua", function(_, _, cmd, data)
+        if cmd == "login" then
+            local ret = false
+            print(data.name, data.pwd)
+            local mysql = skynet.queryservice("test/mysql")
+            local ret = skynet.call(mysql, "lua", "login", data)
+            skynet.ret(skynet.pack(ret))
+            skynet.exit()
+        elseif cmd == "register" then
+            local ret = false
+            print(data.name, data.pwd)
+            local mysql = skynet.queryservice("test/mysql")
+            local ret = skynet.call(mysql, "lua", "register", data)
+            skynet.ret(skynet.pack(ret))
+            skynet.exit()
+        end
     end)
 end
 
