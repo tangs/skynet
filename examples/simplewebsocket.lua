@@ -27,12 +27,20 @@ if MODE == "agent" then
 
     function handle.message(id, msg)
         print("received msg:" .. msg)
-        local data = json.decode(msg)
-        print("cmd:" .. data.cmd)
+        if #data < 2 then 
+            print("invalid msg:" .. msg)
+            return 
+        end
+        local cmdLen = (msg:byte() << 8) & (msg:byte(1))
+        local cmd = msg:sub(3, 3 + cmdLen)
+        local data = json.decode(msg:sub(3 + cmdLen))
+        print("cmd:" .. cmd)
+        print("json data:" .. data)
         serviceLogin = skynet.newservice("test/login")
         if serviceLogin ~= nil then
-            local ret, err = skynet.call(serviceLogin, "lua", data.cmd, data)
+            local resCmd, ret, err = skynet.call(serviceLogin, "lua", cmd, data)
             local res = {}
+            res.cmd = resCmd
             if ret then
                 res.ret_code = 0
                 res.err_msg = ""
