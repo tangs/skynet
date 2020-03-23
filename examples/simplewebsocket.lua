@@ -31,14 +31,14 @@ if MODE == "agent" then
         print("cmd:" .. data.cmd)
         serviceLogin = skynet.newservice("test/login")
         if serviceLogin ~= nil then
-            local ret = skynet.call(serviceLogin, "lua", data.cmd, data)
+            local ret, err = skynet.call(serviceLogin, "lua", data.cmd, data)
             local res = {}
             if ret then
                 res.ret_code = 0
                 res.err_msg = ""
             else
                 res.ret_code = 1
-                res.err_msg = "invalid password."
+                res.err_msg = err or ""
             end
             websocket.write(id, json.encode(res))
         end

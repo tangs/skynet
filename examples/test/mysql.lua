@@ -140,10 +140,13 @@ skynet.start(function()
     --                    .."(id serial primary key, ".. "name varchar(5))")
     local res = db:query([[
         create table if not exists `person` (
-			`name` varchar(45) COLLATE utf8mb4_bin NOT NULL,
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+			`name` varchar(45) COLLATE utf8mb4_bin UNIQUE NOT NULL,
             `password` varchar(45) COLLATE utf8mb4_bin NOT NULL,
-            PRIMARY KEY (`name`),
-			UNIQUE KEY `id_UNIQUE` (`name`)
+            `nikename` varchar(45) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
+            `coin` bigint DEFAULT 0,
+            PRIMARY KEY (`id`),
+			UNIQUE KEY `id_UNIQUE` (`id`)
         )ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
     ]])
 	print( dump( res ) )
@@ -197,14 +200,19 @@ skynet.start(function()
             if type(data) ~= "table" or 
                 type(data.name) ~= "string" or #data.name == 0 or
                 type(data.pwd) ~= "string" or #data.pwd == 0 then 
-                skynet.ret(skynet.pack(false))
+                skynet.ret(skynet.pack(false, "name of pwd is nil."))
                 return
             end
             local sql = string.format("select * from person where name = '%s' and password = '%s';", 
                 data.name, data.pwd)
             local res = db:query(sql)
             print( dump( res ) )
-            skynet.ret(skynet.pack(#res > 0))
+            -- skynet.ret(skynet.pack(#res > 0))
+            if #res > 0 then
+                skynet.ret(skynet.pack(true))
+            else
+                skynet.ret(skynet.pack(false, "invalid name or pwd."))
+            end
         elseif cmd == "register" then
             if type(data) ~= "table" or
                 type(data.name) ~= "string" or #data.name == 0 or
@@ -212,7 +220,7 @@ skynet.start(function()
                 skynet.ret(skynet.pack(false))
                 return
             end
-            local sql = string.format("select * from person where name = '%s';", 
+            local sql = string.format("select name from person where name = '%s';", 
                 data.name, data.pwd)
             local res = db:query(sql)
             -- print( dump( res ) )
@@ -226,7 +234,7 @@ skynet.start(function()
 	        local stmt_insert = db:prepare("insert into person (name, password) values(?,?)")
             local r = db:execute(stmt_insert, data.name, data.pwd)
             print( dump( r ) )
-            skynet.ret(skynet.pack(r.affected_rows > 0))
+            skynet.ret(skynet.pack(r.affected_rows > 0, ""))
         end
         -- skynet.ret(skynet.pack(ret))
     end)

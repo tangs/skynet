@@ -7,15 +7,15 @@ function dispatcher()
             local ret = false
             print(data.name, data.pwd)
             local mysql = skynet.queryservice("test/mysql")
-            local ret = skynet.call(mysql, "lua", "login", data)
-            skynet.ret(skynet.pack(ret))
+            local ret, err = skynet.call(mysql, "lua", "login", data)
+            skynet.ret(skynet.pack(ret, err))
             skynet.exit()
         elseif cmd == "register" then
             local ret = false
             print(data.name, data.pwd)
             local mysql = skynet.queryservice("test/mysql")
-            local ret = skynet.call(mysql, "lua", "register", data)
-            skynet.ret(skynet.pack(ret))
+            local ret, err = skynet.call(mysql, "lua", "register", data)
+            skynet.ret(skynet.pack(ret, err))
             skynet.exit()
         end
     end)
