@@ -27,15 +27,18 @@ if MODE == "agent" then
 
     function handle.message(id, msg)
         print("received msg:" .. msg)
-        if #data < 2 then 
+        if #msg < 2 then 
             print("invalid msg:" .. msg)
             return 
         end
-        local cmdLen = (msg:byte() << 8) & (msg:byte(1))
-        local cmd = msg:sub(3, 3 + cmdLen)
-        local data = json.decode(msg:sub(3 + cmdLen))
+        print(msg:byte(1), msg:byte(2))
+        local cmdLen = (msg:byte() << 8) | (msg:byte(2))
+        print("cmdLen:" .. cmdLen)
+        local cmd = msg:sub(3, 2 + cmdLen)
         print("cmd:" .. cmd)
-        print("json data:" .. data)
+        local jsonData = msg:sub(3 + cmdLen)
+        print("json data:" .. jsonData)
+        local data = json.decode(jsonData)
         serviceLogin = skynet.newservice("test/login")
         if serviceLogin ~= nil then
             local resCmd, ret, err = skynet.call(serviceLogin, "lua", cmd, data)
@@ -48,7 +51,10 @@ if MODE == "agent" then
                 res.ret_code = 1
                 res.err_msg = err or ""
             end
-            websocket.write(id, json.encode(res))
+            local cmdLen = #res.cmd
+            local data = string.char((cmdLen >> 8) & 0xff, cmdLen & 0xff)
+            data = data .. res.cmd .. json.encode(res)
+            websocket.write(id, data)
         end
         -- websocket.write(id, "ret:" .. msg)
     end
