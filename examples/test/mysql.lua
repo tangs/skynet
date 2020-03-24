@@ -127,7 +127,7 @@ skynet.start(function()
 		port=3306,
 		database="skynet",
 		user="root",
-		password="19880603",
+		password="111111",
 		max_packet_size = 1024 * 1024,
 		on_connect = on_connect
 	})
@@ -209,7 +209,7 @@ skynet.start(function()
             print( dump( res ) )
             -- skynet.ret(skynet.pack(#res > 0))
             if #res > 0 then
-                skynet.ret(skynet.pack(true))
+                skynet.ret(skynet.pack(true, res[1]))
             else
                 skynet.ret(skynet.pack(false, "invalid name or pwd."))
             end
@@ -234,7 +234,12 @@ skynet.start(function()
 	        local stmt_insert = db:prepare("insert into person (name, password) values(?,?)")
             local r = db:execute(stmt_insert, data.name, data.pwd)
             print( dump( r ) )
-            skynet.ret(skynet.pack(r.affected_rows > 0, ""))
+            if r.affected_rows > 0 then
+                skynet.ret(skynet.pack(true, r[1]))
+            else
+                skynet.ret(skynet.pack(false, "create fail."))
+            end
+            -- skynet.ret(skynet.pack(r.affected_rows > 0, ""))
         end
         -- skynet.ret(skynet.pack(ret))
     end)

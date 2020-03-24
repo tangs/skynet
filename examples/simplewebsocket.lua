@@ -26,6 +26,16 @@ if MODE == "agent" then
     end
 
     function handle.message(id, msg)
+
+        local function convert_msg(res)
+            local cmdLen = #res.cmd
+            local data = string.char((cmdLen >> 8) & 0xff, cmdLen & 0xff)
+            data = data .. res.cmd .. json.encode(res)
+            print("res len:" .. #data)
+            print("data: " .. data)
+            return data;
+        end
+
         print("received msg:" .. msg)
         if #msg < 2 then 
             print("invalid msg:" .. msg)
@@ -41,7 +51,7 @@ if MODE == "agent" then
         local data = json.decode(jsonData)
         serviceLogin = skynet.newservice("test/login")
         if serviceLogin ~= nil then
-            local resCmd, ret, err = skynet.call(serviceLogin, "lua", cmd, data)
+            local resCmd, ret, info = skynet.call(serviceLogin, "lua", cmd, data)
             local res = {}
             res.cmd = resCmd
             if ret then
@@ -49,12 +59,37 @@ if MODE == "agent" then
                 res.err_msg = ""
             else
                 res.ret_code = 1
-                res.err_msg = err or ""
+                res.err_msg = info or ""
             end
-            local cmdLen = #res.cmd
-            local data = string.char((cmdLen >> 8) & 0xff, cmdLen & 0xff)
-            data = data .. res.cmd .. json.encode(res)
-            websocket.write(id, data)
+            -- local cmdLen = #res.cmd
+            -- local data = string.char((cmdLen >> 8) & 0xff, cmdLen & 0xff)
+            -- data = data .. res.cmd .. json.encode(res)
+            -- print("res len:" .. #data)
+            -- print("data: " .. data)
+            local msg = convert_msg(res)
+            websocket.write(id, msg)
+
+            -- send update msg if succ.
+            if ret then
+                local res = {
+                    cmd = "updateAtt_sc",
+                    strs = {
+                        [1] = {
+                            key = "nickname",
+                            value = info.nickname or ""
+                        },
+                        
+                    },
+                    nums = {
+                        [1] = {
+                            key = "coin",
+                            value = info.coin
+                        }
+                    },
+                }
+                websocket.write(id, convert_msg(res))
+            end
+            -- websocket.write(id, json.encode(res))
         end
         -- websocket.write(id, "ret:" .. msg)
     end
