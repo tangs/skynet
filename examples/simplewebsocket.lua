@@ -76,7 +76,7 @@ if MODE == "agent" then
                     strs = {
                         [1] = {
                             key = "nickname",
-                            value = info.nickname or ""
+                            value = info.nikename or ""
                         },
                         
                     },
