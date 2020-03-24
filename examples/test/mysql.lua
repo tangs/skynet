@@ -120,7 +120,7 @@ end
 skynet.start(function()
 
 	local function on_connect(db)
-		db:query("set charset utf8");
+		-- db:query("set charset utf8");
 	end
 	local db = mysql.connect({
 		host="127.0.0.1",
@@ -143,7 +143,7 @@ skynet.start(function()
             `id` int(11) NOT NULL AUTO_INCREMENT,
 			`name` varchar(45) COLLATE utf8mb4_bin UNIQUE NOT NULL,
             `password` varchar(45) COLLATE utf8mb4_bin NOT NULL,
-            `nikename` varchar(45) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
+            `nickname` varchar(45) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
             `coin` bigint DEFAULT 0,
             PRIMARY KEY (`id`),
 			UNIQUE KEY `id_UNIQUE` (`id`)
@@ -209,7 +209,7 @@ skynet.start(function()
             print( dump( res ) )
             -- skynet.ret(skynet.pack(#res > 0))
             if #res > 0 then
-                skynet.ret(skynet.pack(true, res[1]))
+                skynet.ret(skynet.pack(true, "", res[1]))
             else
                 skynet.ret(skynet.pack(false, "invalid name or pwd."))
             end
@@ -231,11 +231,15 @@ skynet.start(function()
             -- sql = string.format("insert into person (name, password) values('%s', '%s');",
             --     data.name, data.pwd);
 
-	        local stmt_insert = db:prepare("insert into person (name, password) values(?,?)")
-            local r = db:execute(stmt_insert, data.name, data.pwd)
+	        local stmt_insert = db:prepare("insert into person (name, password, nickname) values(?,?,?)")
+            local r = db:execute(stmt_insert, data.name, data.pwd, "中文")
             print( dump( r ) )
             if r.affected_rows > 0 then
-                skynet.ret(skynet.pack(true, r[1]))
+                local sql = string.format("select * from person where id = '%s';", 
+                    r.insert_id)
+                local res = db:query(sql)
+                print( dump( res ) )
+                skynet.ret(skynet.pack(true, "", res[1]))
             else
                 skynet.ret(skynet.pack(false, "create fail."))
             end

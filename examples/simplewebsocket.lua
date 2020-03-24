@@ -51,21 +51,17 @@ if MODE == "agent" then
         local data = json.decode(jsonData)
         serviceLogin = skynet.newservice("test/login")
         if serviceLogin ~= nil then
-            local resCmd, ret, info = skynet.call(serviceLogin, "lua", cmd, data)
-            local res = {}
-            res.cmd = resCmd
+            local res_cmd, ret, err_msg, info = skynet.call(serviceLogin, "lua", cmd, data)
+            local res = {
+                cmd = res_cmd,
+                err_msg = err_msg or "",
+            }
             if ret then
                 res.ret_code = 0
-                res.err_msg = ""
             else
                 res.ret_code = 1
-                res.err_msg = info or ""
             end
-            -- local cmdLen = #res.cmd
-            -- local data = string.char((cmdLen >> 8) & 0xff, cmdLen & 0xff)
-            -- data = data .. res.cmd .. json.encode(res)
-            -- print("res len:" .. #data)
-            -- print("data: " .. data)
+
             local msg = convert_msg(res)
             websocket.write(id, msg)
 
@@ -76,15 +72,14 @@ if MODE == "agent" then
                     strs = {
                         [1] = {
                             key = "nickname",
-                            value = info.nikename or ""
+                            value = info.nickname or ""
                         },
-                        
                     },
                     nums = {
                         [1] = {
                             key = "coin",
                             value = info.coin
-                        }
+                        },
                     },
                 }
                 websocket.write(id, convert_msg(res))
