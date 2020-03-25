@@ -45,76 +45,58 @@ local function dump(obj)
     return dumpObj(obj, 0)
 end
 
-local function test2( db)
-    local i=1
-    while true do
-        local    res = db:query("select * from cats order by id asc")
-        print ( "test2 loop times=" ,i,"\n","query result=",dump( res ) )
-        res = db:query("select * from cats order by id asc")
-        print ( "test2 loop times=" ,i,"\n","query result=",dump( res ) )
+local handle = {}
+local db = nil
 
-        skynet.sleep(1000)
-        i=i+1
+handle.login = function (data)
+    if type(data) ~= "table" or 
+        type(data.name) ~= "string" or #data.name == 0 or
+        type(data.pwd) ~= "string" or #data.pwd == 0 then 
+        skynet.ret(skynet.pack(false, "name of pwd is nil."))
+        return
     end
-end 
-local function test3( db)
-    local i=1
-    while true do
-        local    res = db:query("select * from cats order by id asc")
-        print ( "test3 loop times=" ,i,"\n","query result=",dump( res ) )
-        res = db:query("select * from cats order by id asc")
-        print ( "test3 loop times=" ,i,"\n","query result=",dump( res ) )
-        skynet.sleep(1000)
-        i=i+1
+    local sql = string.format("select * from person where name = '%s' and password = '%s';", 
+        data.name, data.pwd)
+    local res = db:query(sql)
+    print( dump( res ) )
+    -- skynet.ret(skynet.pack(#res > 0))
+    if #res > 0 then
+        skynet.ret(skynet.pack(0, "", res[1]))
+    else
+        skynet.ret(skynet.pack(1, "invalid name or pwd."))
     end
 end
-local function test4( db)
-	local stmt = db:prepare("SELECT * FROM cats WHERE name=?")
-    print ( "test4 prepare result=",dump( stmt ) )
-	local res = db:execute(stmt,'Bob')
-    print ( "test4 query result=",dump( res ) )
-    db:stmt_close(stmt)
-end
 
--- 测试存储过程和blob读写
-local function test_sp_blob(db)
-	print("test stored procedure")
-	-- 创建测试表
-	db:query "DROP TABLE IF EXISTS `test`"
-	db:query [[
-		CREATE TABLE `test` (
-			`id` int(11) NOT NULL AUTO_INCREMENT,
-			`str` varchar(45) COLLATE utf8mb4_bin DEFAULT NULL,
-			`dt` timestamp NULL DEFAULT NULL,
-			`flt` double DEFAULT NULL,
-			`blb` mediumblob,
-			`num` int(11) DEFAULT NULL,
-			PRIMARY KEY (`id`),
-			UNIQUE KEY `id_UNIQUE` (`id`)
-			) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-	]]
-	-- 创建测试存储过程
-	db:query "DROP PROCEDURE IF EXISTS `get_test`"
-	db:query [[
-		CREATE PROCEDURE `get_test`(IN p_id int)
-		BEGIN
-			select * from test where id=p_id;
-		END
-	]]
-	local stmt_insert = db:prepare("INSERT test (str,dt,flt,num,blb) VALUES (?,?,?,?,?)")
-	local stmt_csp = db:prepare("call get_test(?)")
-	local test_blob = string.char(0x01,0x02,0x03,0x04,0x0a,0x0b,0x0d,0x0e,0x10,0x20,0x30,0x40)
+handle.register = function (data)
+    if type(data) ~= "table" or
+        type(data.name) ~= "string" or #data.name == 0 or
+        type(data.pwd) ~= "string" or #data.pwd == 0 then 
+        skynet.ret(skynet.pack(1, "name and pwd can't null."))
+        return
+    end
+    local sql = string.format("select name from person where name = '%s';", 
+        data.name, data.pwd)
+    local res = db:query(sql)
+    -- print( dump( res ) )
+    if (#res > 0) then 
+        skynet.ret(skynet.pack(2, "Curent name has registerd."))
+        return 
+    end
+    -- sql = string.format("insert into person (name, password) values('%s', '%s');",
+    --     data.name, data.pwd);
 
-	local r = db:execute(stmt_insert,'test_str','2020-3-20 15:30:40',3.1415,89,test_blob)
-	print("insert result : insert_id",r.insert_id,"affected_rows",r.affected_rows
-		,"server_status",r.server_status,"warning_count",r.warning_count)
-
-	r = db:execute(stmt_csp,1)
-	local rs = r[1][1]
-	print("call get_test() result : str",rs.str,"dt",rs.dt,"flt",rs.flt,"num",rs.num
-		,"blb len",#rs.blb,"equal",test_blob==rs.blb)
-
-	print("test stored procedure ok")
+    local stmt_insert = db:prepare("insert into person (name, password, nickname) values(?,?,?)")
+    local r = db:execute(stmt_insert, data.name, data.pwd, "中文")
+    print( dump( r ) )
+    if r.affected_rows > 0 then
+        local sql = string.format("select * from person where id = '%s';", 
+            r.insert_id)
+        local res = db:query(sql)
+        print( dump( res ) )
+        skynet.ret(skynet.pack(0, "", res[1]))
+    else
+        skynet.ret(skynet.pack(3, "create account fail."))
+    end
 end
 
 skynet.start(function()
@@ -122,7 +104,7 @@ skynet.start(function()
 	local function on_connect(db)
 		-- db:query("set charset utf8");
 	end
-	local db = mysql.connect({
+	db = mysql.connect({
 		host="127.0.0.1",
 		port=3306,
 		database="skynet",
@@ -149,101 +131,62 @@ skynet.start(function()
 			UNIQUE KEY `id_UNIQUE` (`id`)
         )ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
     ]])
-	print( dump( res ) )
-
-	-- local res = db:query("drop table if exists cats")
-	-- res = db:query("create table cats "
-	-- 	               .."(id serial primary key, ".. "name varchar(5))")
-	-- print( dump( res ) )
-
-	-- res = db:query("insert into cats (name) "
-    --                          .. "values (\'Bob\'),(\'\'),(null)")
-	-- print ( dump( res ) )
-
-	-- res = db:query("select * from cats order by id asc")
-	-- print ( dump( res ) )
-
-	-- -- 测试存储过程和二进制blob
-	-- test_sp_blob(db)
-
-    -- -- test in another coroutine
-	-- skynet.fork( test2, db)
-    -- skynet.fork( test3, db)
-	-- skynet.fork( test4, db)
-	-- -- multiresultset test
-	-- res = db:query("select * from cats order by id asc ; select * from cats")
-	-- print ("multiresultset test result=", dump( res ) )
-
-	-- print ("escape string test result=", mysql.quote_sql_str([[\mysql escape %string test'test"]]) )
-
-	-- -- bad sql statement
-	-- local res =  db:query("select * from notexisttable" )
-	-- print( "bad query test result=" ,dump(res) )
-
-    -- local i=1
-    -- while true do
-    --     local    res = db:query("select * from cats order by id asc")
-    --     print ( "test1 loop times=" ,i,"\n","query result=",dump( res ) )
-
-    --     res = db:query("select * from cats order by id asc")
-    --     print ( "test1 loop times=" ,i,"\n","query result=",dump( res ) )
-
-
-    --     skynet.sleep(1000)
-    --     i=i+1
-    -- end
-
-	--db:disconnect()
-    --skynet.exit()
+    print( dump( res ) )
+    
     skynet.dispatch("lua", function(_, __, cmd, data)
-        if cmd == "login" then
-            if type(data) ~= "table" or 
-                type(data.name) ~= "string" or #data.name == 0 or
-                type(data.pwd) ~= "string" or #data.pwd == 0 then 
-                skynet.ret(skynet.pack(false, "name of pwd is nil."))
-                return
-            end
-            local sql = string.format("select * from person where name = '%s' and password = '%s';", 
-                data.name, data.pwd)
-            local res = db:query(sql)
-            print( dump( res ) )
-            -- skynet.ret(skynet.pack(#res > 0))
-            if #res > 0 then
-                skynet.ret(skynet.pack(0, "", res[1]))
-            else
-                skynet.ret(skynet.pack(1, "invalid name or pwd."))
-            end
-        elseif cmd == "register" then
-            if type(data) ~= "table" or
-                type(data.name) ~= "string" or #data.name == 0 or
-                type(data.pwd) ~= "string" or #data.pwd == 0 then 
-                skynet.ret(skynet.pack(1, "name and pwd can't null."))
-                return
-            end
-            local sql = string.format("select name from person where name = '%s';", 
-                data.name, data.pwd)
-            local res = db:query(sql)
-            -- print( dump( res ) )
-            if (#res > 0) then 
-                skynet.ret(skynet.pack(2, "Curent name has registerd."))
-                return 
-            end
-            -- sql = string.format("insert into person (name, password) values('%s', '%s');",
-            --     data.name, data.pwd);
-
-	        local stmt_insert = db:prepare("insert into person (name, password, nickname) values(?,?,?)")
-            local r = db:execute(stmt_insert, data.name, data.pwd, "中文")
-            print( dump( r ) )
-            if r.affected_rows > 0 then
-                local sql = string.format("select * from person where id = '%s';", 
-                    r.insert_id)
-                local res = db:query(sql)
-                print( dump( res ) )
-                skynet.ret(skynet.pack(0, "", res[1]))
-            else
-                skynet.ret(skynet.pack(3, "create account fail."))
-            end
+        if type(handle[cmd]) == 'function' then
+            handle[cmd](data)
+            return
         end
+        skynet.ret(skynet.pack(-1, "invalid cmd: " .. cmd))
+        -- if cmd == "login" then
+        --     if type(data) ~= "table" or 
+        --         type(data.name) ~= "string" or #data.name == 0 or
+        --         type(data.pwd) ~= "string" or #data.pwd == 0 then 
+        --         skynet.ret(skynet.pack(false, "name of pwd is nil."))
+        --         return
+        --     end
+        --     local sql = string.format("select * from person where name = '%s' and password = '%s';", 
+        --         data.name, data.pwd)
+        --     local res = db:query(sql)
+        --     print( dump( res ) )
+        --     -- skynet.ret(skynet.pack(#res > 0))
+        --     if #res > 0 then
+        --         skynet.ret(skynet.pack(0, "", res[1]))
+        --     else
+        --         skynet.ret(skynet.pack(1, "invalid name or pwd."))
+        --     end
+        -- elseif cmd == "register" then
+        --     if type(data) ~= "table" or
+        --         type(data.name) ~= "string" or #data.name == 0 or
+        --         type(data.pwd) ~= "string" or #data.pwd == 0 then 
+        --         skynet.ret(skynet.pack(1, "name and pwd can't null."))
+        --         return
+        --     end
+        --     local sql = string.format("select name from person where name = '%s';", 
+        --         data.name, data.pwd)
+        --     local res = db:query(sql)
+        --     -- print( dump( res ) )
+        --     if (#res > 0) then 
+        --         skynet.ret(skynet.pack(2, "Curent name has registerd."))
+        --         return 
+        --     end
+        --     -- sql = string.format("insert into person (name, password) values('%s', '%s');",
+        --     --     data.name, data.pwd);
+
+	    --     local stmt_insert = db:prepare("insert into person (name, password, nickname) values(?,?,?)")
+        --     local r = db:execute(stmt_insert, data.name, data.pwd, "中文")
+        --     print( dump( r ) )
+        --     if r.affected_rows > 0 then
+        --         local sql = string.format("select * from person where id = '%s';", 
+        --             r.insert_id)
+        --         local res = db:query(sql)
+        --         print( dump( res ) )
+        --         skynet.ret(skynet.pack(0, "", res[1]))
+        --     else
+        --         skynet.ret(skynet.pack(3, "create account fail."))
+        --     end
+        -- end
     end)
 end)
 

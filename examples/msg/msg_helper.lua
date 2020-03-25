@@ -40,7 +40,7 @@ end
 -- ret: false, err_msg(string)
 local function decode(dest_seqid, bytes)
     local len = #bytes
-    print("len:" .. len)
+    -- print("len:" .. len)
     -- invalid bytes.
     if len < 8 then return false, "invalid bytes." end
     local idx = 1
@@ -54,20 +54,20 @@ local function decode(dest_seqid, bytes)
     if seqid ~= dest_seqid then return false, "check sequnce id fail." end
     local cmdLen = (bytes:byte(idx) << 8) | (bytes:byte(idx + 1))
     idx = idx + 2
-    print("cmdLen:" .. cmdLen)
+    -- print("cmdLen:" .. cmdLen)
     if len < idx + cmdLen + 4 then return false, "invalid bytes1." end
     local cmd = bytes:sub(idx, 4 + cmdLen)
-    print("cmd:" .. cmd)
+    -- print("cmd:" .. cmd)
     idx = idx + cmdLen + 1  -- skip cmd len '\0' tail.
     local dataLen = (bytes:byte(idx) << 24) | (bytes:byte(idx + 1) << 16) 
         | (bytes:byte(idx + 2) << 8) | (bytes:byte(idx + 3))
-    print("dataLen:" .. dataLen)
+    -- print("dataLen:" .. dataLen)
     idx = idx + 4
-    print("idx:" .. idx)
+    -- print("idx:" .. idx)
     if len + 1 ~= idx + dataLen + 4 then return false, "invalid bytes2." end
     local jsonData = bytes:sub(idx, idx + dataLen - 1)
     idx = idx + dataLen
-    print("jsonData:" .. jsonData)
+    -- print("jsonData:" .. jsonData)
     local data = json.decode(jsonData)
     return true, data, cmd
 end

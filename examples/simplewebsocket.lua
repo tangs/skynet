@@ -15,6 +15,7 @@ local userinfo = {}
 -- local serviceLogin
 
 local last_pongtime = 0
+local cur_service = nil
 
 if MODE == "agent" then
 
@@ -38,7 +39,7 @@ if MODE == "agent" then
                 end
                 local ping = msg_maker.ping()
                 ping.time_ms = cur_time * 1000
-                print("ping: " .. ping.time_ms)
+                -- print("ping: " .. ping.time_ms)
                 send_msg1(id, ping)
                 ping_func()
             end)
@@ -80,16 +81,20 @@ if MODE == "agent" then
                     send_msg(msg)
                 end
             end
+            if ret_code ~= 0 then
+                print("err: " .. ret_data.err_msg)
+            end
             return ret_code, ret_data.err_msg or ""
         end
 
         local msg_handler_priority = {
             pong = function (msg)
                 last_pongtime = skynet.time()
-                print("pong: " .. msg.time_ms)
-                print("delay time: " .. (last_pongtime * 1000 - msg.time_ms))
+                -- print("pong: " .. msg.time_ms)
+                -- print("delay time: " .. (last_pongtime * 1000 - msg.time_ms))
             end,
             ping = function (msg)
+                -- TODO
             end
         }
 
@@ -97,7 +102,7 @@ if MODE == "agent" then
             login_cs = function (msg)
                 local service = skynet.newservice("service/auth")
                 local ret_data = skynet.call(service, "lua", msg)
-                local ret_code, err_msg = handle_responce(ret_data)
+                local ret_code = handle_responce(ret_data)
 
                 if ret_code == 0 then 
                     userinfo = ret_data.info
@@ -107,7 +112,7 @@ if MODE == "agent" then
             register_cs = function (msg)
                 local service = skynet.newservice("service/register")
                 local ret_data = skynet.call(service, "lua", msg)
-                local ret_code, err_msg = handle_responce(ret_data)
+                local ret_code = handle_responce(ret_data)
 
                 if ret_code == 0 then 
                     userinfo = ret_data.info
@@ -128,8 +133,15 @@ if MODE == "agent" then
             return
         end
 
+        -- 转发到当前相应service
+        if cur_service then
+            local ret_data = skynet.call(cur_service, "lua", userinfo, cmd, data)
+            handle_responce(ret_data)
+            return
+        end
+
         if type(msg_handler[cmd]) == 'function' then
-            msg_handler[cmd](data);
+            msg_handler[cmd](data)
             return
         end
     end
