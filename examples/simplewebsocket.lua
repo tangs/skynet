@@ -5,6 +5,7 @@ local socket = require "skynet.socket"
 local service = require "skynet.service"
 local websocket = require "http.websocket"
 local json = require "json"
+local msg_helper = require "prj.msg_helper"
 
 local handle = {}
 local MODE = ...
@@ -25,30 +26,19 @@ if MODE == "agent" then
         print("--------------")
     end
 
-    function handle.message(id, msg)
+    function handle.message(id, bytes)
 
         local function convert_msg(res)
-            local cmdLen = #res.cmd
-            local data = string.char((cmdLen >> 8) & 0xff, cmdLen & 0xff)
-            data = data .. res.cmd .. json.encode(res)
-            print("res len:" .. #data)
-            print("data: " .. data)
-            return data;
+            local ret, data = msg_helper.encode(0, res, res.cmd)
+            return data
         end
 
-        print("received msg:" .. msg)
-        if #msg < 2 then 
-            print("invalid msg:" .. msg)
-            return 
+        local ret, data, cmd = msg_helper.decode(0, bytes)
+        if ret == false then 
+            print("err:" .. data)
+            return
         end
-        print(msg:byte(1), msg:byte(2))
-        local cmdLen = (msg:byte() << 8) | (msg:byte(2))
-        print("cmdLen:" .. cmdLen)
-        local cmd = msg:sub(3, 2 + cmdLen)
-        print("cmd:" .. cmd)
-        local jsonData = msg:sub(3 + cmdLen)
-        print("json data:" .. jsonData)
-        local data = json.decode(jsonData)
+
         serviceLogin = skynet.newservice("test/login")
         if serviceLogin ~= nil then
             local res_cmd, ret, err_msg, info = skynet.call(serviceLogin, "lua", cmd, data)
@@ -63,7 +53,7 @@ if MODE == "agent" then
             end
 
             local msg = convert_msg(res)
-            websocket.write(id, msg)
+            websocket.write(id, msg, "binary")
 
             -- send update msg if succ.
             if ret then
@@ -82,7 +72,7 @@ if MODE == "agent" then
                         },
                     },
                 }
-                websocket.write(id, convert_msg(res))
+                websocket.write(id, convert_msg(res), "binary")
             end
             -- websocket.write(id, json.encode(res))
         end
