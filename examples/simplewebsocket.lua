@@ -70,12 +70,17 @@ if MODE == "agent" then
                 if ret_code == 0 then 
                     userinfo = ret_data.info
                     update_info()
-                else
-                    print("err:" .. err_msg)
                 end
             end,
             register_cs = function (msg)
-                
+                local service = skynet.newservice("service/register")
+                local ret_data = skynet.call(service, "lua", msg)
+                local ret_code, err_msg = handle_responce(ret_data)
+
+                if ret_code == 0 then 
+                    userinfo = ret_data.info
+                    update_info()
+                end
             end,
         }
 

@@ -217,7 +217,7 @@ skynet.start(function()
             if type(data) ~= "table" or
                 type(data.name) ~= "string" or #data.name == 0 or
                 type(data.pwd) ~= "string" or #data.pwd == 0 then 
-                skynet.ret(skynet.pack(false))
+                skynet.ret(skynet.pack(1, "name and pwd can't null."))
                 return
             end
             local sql = string.format("select name from person where name = '%s';", 
@@ -225,7 +225,7 @@ skynet.start(function()
             local res = db:query(sql)
             -- print( dump( res ) )
             if (#res > 0) then 
-                skynet.ret(skynet.pack(false, "Curent name has registerd."))
+                skynet.ret(skynet.pack(2, "Curent name has registerd."))
                 return 
             end
             -- sql = string.format("insert into person (name, password) values('%s', '%s');",
@@ -239,13 +239,11 @@ skynet.start(function()
                     r.insert_id)
                 local res = db:query(sql)
                 print( dump( res ) )
-                skynet.ret(skynet.pack(true, "", res[1]))
+                skynet.ret(skynet.pack(0, "", res[1]))
             else
-                skynet.ret(skynet.pack(false, "create fail."))
+                skynet.ret(skynet.pack(3, "create account fail."))
             end
-            -- skynet.ret(skynet.pack(r.affected_rows > 0, ""))
         end
-        -- skynet.ret(skynet.pack(ret))
     end)
 end)
 

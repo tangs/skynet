@@ -11,9 +11,9 @@ function dispatcher()
     skynet.dispatch("lua", function(_, __, msg)
         print("start auth:" .. msg.name .. ", " .. msg.pwd)
         local mysql = skynet.queryservice("test/mysql")
-        local ret_code, err, info = skynet.call(mysql, "lua", "login", msg)
+        local ret_code, err, info = skynet.call(mysql, "lua", "register", msg)
 
-        local res_msg = msg_maker.login_sc()
+        local res_msg = msg_maker.register_sc()
         res_msg.err_msg = err
         res_msg.ret_code = ret_code
 

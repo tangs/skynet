@@ -20,7 +20,7 @@ local function login_sc()
     return {
         cmd = "login_sc",
         ret_code = 0,
-        errr_msg = "",
+        err_msg = "",
     }
 end
 
@@ -28,7 +28,7 @@ local function register_sc()
     return {
         cmd = "register_sc",
         ret_code = 0,
-        errr_msg = "",
+        err_msg = "",
     }
 end
 
