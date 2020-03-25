@@ -4,24 +4,17 @@ local skynet = require "skynet"
 local socket = require "skynet.socket"
 local service = require "skynet.service"
 local websocket = require "http.websocket"
-local json = require "json"
+
 local msg_helper = require "msg.msg_helper"
 local msg_maker = require "msg.msg_maker"
 
 local handle = {}
 local MODE = ...
+
+local userinfo = {}
 -- local serviceLogin
 
 if MODE == "agent" then
-
-    local function sendmsg(id, msg)
-        local ret, data = msg_helper.encode(0, msg, msg.cmd)
-        if ret == false then 
-            print("err:" .. data)
-            return 
-        end
-        websocket.write(id, data, "binary")
-    end
 
     function handle.connect(id)
         print("ws connect from: " .. tostring(id))
@@ -38,11 +31,53 @@ if MODE == "agent" then
     end
 
     function handle.message(id, bytes)
+        local function send_msg(msg)
+            local ret, data = msg_helper.encode(0, msg, msg.cmd)
+            if ret == false then 
+                print("err:" .. data)
+                return 
+            end
+            websocket.write(id, data, "binary")
+        end
 
-        -- local function convert_msg(res)
-        --     local ret, data = msg_helper.encode(0, res, res.cmd)
-        --     return data
-        -- end
+        local function update_info()
+            local info = userinfo
+            local msg = msg_maker.updateatt_sc()
+            local keys = msg_maker.ATT_KEY;
+            table.insert(msg.nums, msg_maker.kv(keys.coin, info.coin))
+            table.insert(msg.strs, msg_maker.kv(keys.nickname, info.nickname or ""))
+            send_msg(msg)
+        end
+
+        local function handle_responce(ret_data)
+            local ret_code = ret_data.ret_code
+            local msges = ret_data.msges
+
+            if type(msges) == "table" then
+                for _, msg in ipairs(msges) do
+                    send_msg(msg)
+                end
+            end
+            return ret_code, ret_data.err_msg or ""
+        end
+
+        local msg_handler = {
+            login_cs = function (msg)
+                local service = skynet.newservice("service/auth")
+                local ret_data = skynet.call(service, "lua", msg)
+                local ret_code, err_msg = handle_responce(ret_data)
+
+                if ret_code == 0 then 
+                    userinfo = ret_data.info
+                    update_info()
+                else
+                    print("err:" .. err_msg)
+                end
+            end,
+            register_cs = function (msg)
+                
+            end,
+        }
 
         local ret, data, cmd = msg_helper.decode(0, bytes)
         if ret == false then 
@@ -50,33 +85,37 @@ if MODE == "agent" then
             return
         end
 
-        local serviceLogin = skynet.newservice("test/login")
-        if serviceLogin ~= nil then
-            local res_cmd, ret, err_msg, info = skynet.call(serviceLogin, "lua", cmd, data)
-            local res = {
-                cmd = res_cmd,
-                err_msg = err_msg or "",
-            }
-            if ret then
-                res.ret_code = 0
-            else
-                res.ret_code = 1
-            end
-
-            -- local msg = convert_msg(res)
-            -- websocket.write(id, msg, "binary")
-            sendmsg(id, res)
-
-            -- send update msg if succ.
-            if ret then
-                local msg = msg_maker.updateatt_sc()
-                local keys = msg_maker.att_key;
-                table.insert(msg.nums, msg_maker.kv(keys.coin, info.coin))
-                table.insert(msg.strs, msg_maker.kv(keys.nickname, info.nickname or ""))
-                -- websocket.write(id, convert_msg(res), "binary")
-                sendmsg(id, msg)
-            end
+        if type(msg_handler[cmd]) == 'function' then
+            msg_handler[cmd](data);
         end
+
+        -- local serviceLogin = skynet.newservice("test/login")
+        -- if serviceLogin ~= nil then
+        --     local res_cmd, ret, err_msg, info = skynet.call(serviceLogin, "lua", cmd, data)
+        --     local res = {
+        --         cmd = res_cmd,
+        --         err_msg = err_msg or "",
+        --     }
+        --     if ret then
+        --         res.ret_code = 0
+        --     else
+        --         res.ret_code = 1
+        --     end
+
+        --     -- local msg = convert_msg(res)
+        --     -- websocket.write(id, msg, "binary")
+        --     send_msg(res)
+
+        --     -- send update msg if succ.
+        --     if ret then
+        --         local msg = msg_maker.updateatt_sc()
+        --         local keys = msg_maker.ATT_KEY;
+        --         table.insert(msg.nums, msg_maker.kv(keys.coin, info.coin))
+        --         table.insert(msg.strs, msg_maker.kv(keys.nickname, info.nickname or ""))
+        --         -- websocket.write(id, convert_msg(res), "binary")
+        --         send_msg(msg)
+        --     end
+        -- end
     end
 
     function handle.ping(id)
@@ -103,7 +142,6 @@ if MODE == "agent" then
             end
         end)
     end)
-
 else
     local function simple_echo_client_service(protocol)
         local skynet = require "skynet"

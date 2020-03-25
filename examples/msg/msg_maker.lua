@@ -1,14 +1,20 @@
+
+local ATT_KEY = {
+    coin = "coin",
+    nickname = "nickname",
+}
+
+local SCENE_ID = {
+    lobby = 1,
+    catchfish = 2,
+}
+
 local function kv(k, v)
     return {
         key = k,
         value = v,
     }
 end
-
-local att_key = {
-    coin = "coin",
-    nickname = "nickname",
-}
 
 local function login_sc()
     return {
@@ -34,9 +40,14 @@ local function updateatt_sc()
     }
 end
 
+local function enterscene_sc()
+
+end
+
 return {
+    ATT_KEY = ATT_KEY,
+    SCENE_ID = SCENE_ID,
     kv = kv,
-    att_key = att_key,
     login_sc = login_sc,
     register_sc = register_sc,
     updateatt_sc = updateatt_sc,

@@ -209,9 +209,9 @@ skynet.start(function()
             print( dump( res ) )
             -- skynet.ret(skynet.pack(#res > 0))
             if #res > 0 then
-                skynet.ret(skynet.pack(true, "", res[1]))
+                skynet.ret(skynet.pack(0, "", res[1]))
             else
-                skynet.ret(skynet.pack(false, "invalid name or pwd."))
+                skynet.ret(skynet.pack(1, "invalid name or pwd."))
             end
         elseif cmd == "register" then
             if type(data) ~= "table" or
