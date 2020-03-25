@@ -14,10 +14,37 @@ local MODE = ...
 local userinfo = {}
 -- local serviceLogin
 
+local last_pongtime = 0
+
 if MODE == "agent" then
+
+    local function send_msg1(id, msg)
+        local ret, data = msg_helper.encode(0, msg, msg.cmd)
+        if ret == false then 
+            print("err:" .. data)
+            return 
+        end
+        websocket.write(id, data, "binary")
+    end
 
     function handle.connect(id)
         print("ws connect from: " .. tostring(id))
+        local function ping_func()
+            skynet.timeout(500, function ()
+                local cur_time = skynet.time()
+                if cur_time - last_pongtime > 10 then
+                    handle.close(id, 1, "ping timeout.")
+                    return
+                end
+                local ping = msg_maker.ping()
+                ping.time_ms = cur_time * 1000
+                print("ping: " .. ping.time_ms)
+                send_msg1(id, ping)
+                ping_func()
+            end)
+        end
+        ping_func()
+        last_pongtime = skynet.time()
     end
 
     function handle.handshake(id, header, url)
@@ -32,12 +59,7 @@ if MODE == "agent" then
 
     function handle.message(id, bytes)
         local function send_msg(msg)
-            local ret, data = msg_helper.encode(0, msg, msg.cmd)
-            if ret == false then 
-                print("err:" .. data)
-                return 
-            end
-            websocket.write(id, data, "binary")
+            send_msg1(id, msg)
         end
 
         local function update_info()
@@ -60,6 +82,16 @@ if MODE == "agent" then
             end
             return ret_code, ret_data.err_msg or ""
         end
+
+        local msg_handler_priority = {
+            pong = function (msg)
+                last_pongtime = skynet.time()
+                print("pong: " .. msg.time_ms)
+                print("delay time: " .. (last_pongtime * 1000 - msg.time_ms))
+            end,
+            ping = function (msg)
+            end
+        }
 
         local msg_handler = {
             login_cs = function (msg)
@@ -90,37 +122,16 @@ if MODE == "agent" then
             return
         end
 
-        if type(msg_handler[cmd]) == 'function' then
-            msg_handler[cmd](data);
+        -- 优先处理的消息，不转发
+        if type(msg_handler_priority[cmd]) == 'function' then
+            msg_handler_priority[cmd](data);
+            return
         end
 
-        -- local serviceLogin = skynet.newservice("test/login")
-        -- if serviceLogin ~= nil then
-        --     local res_cmd, ret, err_msg, info = skynet.call(serviceLogin, "lua", cmd, data)
-        --     local res = {
-        --         cmd = res_cmd,
-        --         err_msg = err_msg or "",
-        --     }
-        --     if ret then
-        --         res.ret_code = 0
-        --     else
-        --         res.ret_code = 1
-        --     end
-
-        --     -- local msg = convert_msg(res)
-        --     -- websocket.write(id, msg, "binary")
-        --     send_msg(res)
-
-        --     -- send update msg if succ.
-        --     if ret then
-        --         local msg = msg_maker.updateatt_sc()
-        --         local keys = msg_maker.ATT_KEY;
-        --         table.insert(msg.nums, msg_maker.kv(keys.coin, info.coin))
-        --         table.insert(msg.strs, msg_maker.kv(keys.nickname, info.nickname or ""))
-        --         -- websocket.write(id, convert_msg(res), "binary")
-        --         send_msg(msg)
-        --     end
-        -- end
+        if type(msg_handler[cmd]) == 'function' then
+            msg_handler[cmd](data);
+            return
+        end
     end
 
     function handle.ping(id)

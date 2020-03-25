@@ -16,6 +16,21 @@ local function kv(k, v)
     }
 end
 
+local function ping()
+    return {
+        cmd = "ping",
+        time_ms = 0,
+    }
+end
+
+local function pong()
+    return {
+        cmd = "pong",
+        time_ms = 0,
+        -- delay_ms = 0,
+    }
+end
+
 local function login_sc()
     return {
         cmd = "login_sc",
@@ -48,6 +63,8 @@ return {
     ATT_KEY = ATT_KEY,
     SCENE_ID = SCENE_ID,
     kv = kv,
+    ping = ping,
+    pong = pong,
     login_sc = login_sc,
     register_sc = register_sc,
     updateatt_sc = updateatt_sc,

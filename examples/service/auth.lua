@@ -10,6 +10,7 @@ local sn_helper = require "utils.skynet_helper"
 function dispatcher()
     skynet.dispatch("lua", function(_, __, msg)
         print("start auth:" .. msg.name .. ", " .. msg.pwd)
+        print("time:", skynet.time())
         local mysql = skynet.queryservice("test/mysql")
         local ret_code, err, info = skynet.call(mysql, "lua", "login", msg)
 
