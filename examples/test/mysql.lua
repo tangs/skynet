@@ -99,6 +99,19 @@ handle.register = function (data)
     end
 end
 
+handle.update_info = function (data, info)
+    print("mysql handle.update_info.")
+    local sql = string.format("update person set %s='%s' where id=%d", 
+        data.key, data.value, info.id)
+    local res = db:query(sql)
+    print( dump( res ) )
+    if res.badresult then
+        skynet.ret(skynet.pack(1, res.err))
+    else
+        skynet.ret(skynet.pack(0, ""))
+    end
+end
+
 skynet.start(function()
 
 	local function on_connect(db)
@@ -133,60 +146,14 @@ skynet.start(function()
     ]])
     print( dump( res ) )
     
-    skynet.dispatch("lua", function(_, __, cmd, data)
+    skynet.dispatch("lua", function(_, __, cmd, data, info)
         if type(handle[cmd]) == 'function' then
-            handle[cmd](data)
+            handle[cmd](data, info)
+            skynet.exit()
             return
         end
         skynet.ret(skynet.pack(-1, "invalid cmd: " .. cmd))
-        -- if cmd == "login" then
-        --     if type(data) ~= "table" or 
-        --         type(data.name) ~= "string" or #data.name == 0 or
-        --         type(data.pwd) ~= "string" or #data.pwd == 0 then 
-        --         skynet.ret(skynet.pack(false, "name of pwd is nil."))
-        --         return
-        --     end
-        --     local sql = string.format("select * from person where name = '%s' and password = '%s';", 
-        --         data.name, data.pwd)
-        --     local res = db:query(sql)
-        --     print( dump( res ) )
-        --     -- skynet.ret(skynet.pack(#res > 0))
-        --     if #res > 0 then
-        --         skynet.ret(skynet.pack(0, "", res[1]))
-        --     else
-        --         skynet.ret(skynet.pack(1, "invalid name or pwd."))
-        --     end
-        -- elseif cmd == "register" then
-        --     if type(data) ~= "table" or
-        --         type(data.name) ~= "string" or #data.name == 0 or
-        --         type(data.pwd) ~= "string" or #data.pwd == 0 then 
-        --         skynet.ret(skynet.pack(1, "name and pwd can't null."))
-        --         return
-        --     end
-        --     local sql = string.format("select name from person where name = '%s';", 
-        --         data.name, data.pwd)
-        --     local res = db:query(sql)
-        --     -- print( dump( res ) )
-        --     if (#res > 0) then 
-        --         skynet.ret(skynet.pack(2, "Curent name has registerd."))
-        --         return 
-        --     end
-        --     -- sql = string.format("insert into person (name, password) values('%s', '%s');",
-        --     --     data.name, data.pwd);
-
-	    --     local stmt_insert = db:prepare("insert into person (name, password, nickname) values(?,?,?)")
-        --     local r = db:execute(stmt_insert, data.name, data.pwd, "中文")
-        --     print( dump( r ) )
-        --     if r.affected_rows > 0 then
-        --         local sql = string.format("select * from person where id = '%s';", 
-        --             r.insert_id)
-        --         local res = db:query(sql)
-        --         print( dump( res ) )
-        --         skynet.ret(skynet.pack(0, "", res[1]))
-        --     else
-        --         skynet.ret(skynet.pack(3, "create account fail."))
-        --     end
-        -- end
+        skynet.exit()
     end)
 end)
 

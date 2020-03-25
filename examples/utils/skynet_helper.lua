@@ -2,7 +2,7 @@
 local function mk_res(ret_code, res_msg)
     return {
         ret_code = ret_code,
-        res_msg = res_msg,
+        res_msg = res_msg or "",
         msges = {
         }
     }

@@ -72,6 +72,10 @@ if MODE == "agent" then
             send_msg(msg)
         end
 
+        local function enter_lobby()
+            cur_service = skynet.newservice("service/lobby")
+        end
+
         local function handle_responce(ret_data)
             local ret_code = ret_data.ret_code
             local msges = ret_data.msges
@@ -107,6 +111,7 @@ if MODE == "agent" then
                 if ret_code == 0 then 
                     userinfo = ret_data.info
                     update_info()
+                    enter_lobby()
                 end
             end,
             register_cs = function (msg)
@@ -117,6 +122,7 @@ if MODE == "agent" then
                 if ret_code == 0 then 
                     userinfo = ret_data.info
                     update_info()
+                    enter_lobby()
                 end
             end,
         }
@@ -135,7 +141,7 @@ if MODE == "agent" then
 
         -- 转发到当前相应service
         if cur_service then
-            local ret_data = skynet.call(cur_service, "lua", userinfo, cmd, data)
+            local ret_data = skynet.call(cur_service, "lua", cmd, data, userinfo)
             handle_responce(ret_data)
             return
         end
