@@ -5,13 +5,24 @@ local socket = require "skynet.socket"
 local service = require "skynet.service"
 local websocket = require "http.websocket"
 local json = require "json"
-local msg_helper = require "prj.msg_helper"
+local msg_helper = require "msg.msg_helper"
+local msg_maker = require "msg.msg_maker"
 
 local handle = {}
 local MODE = ...
 -- local serviceLogin
 
 if MODE == "agent" then
+
+    local function sendmsg(id, msg)
+        local ret, data = msg_helper.encode(0, msg, msg.cmd)
+        if ret == false then 
+            print("err:" .. data)
+            return 
+        end
+        websocket.write(id, data, "binary")
+    end
+
     function handle.connect(id)
         print("ws connect from: " .. tostring(id))
     end
@@ -28,10 +39,10 @@ if MODE == "agent" then
 
     function handle.message(id, bytes)
 
-        local function convert_msg(res)
-            local ret, data = msg_helper.encode(0, res, res.cmd)
-            return data
-        end
+        -- local function convert_msg(res)
+        --     local ret, data = msg_helper.encode(0, res, res.cmd)
+        --     return data
+        -- end
 
         local ret, data, cmd = msg_helper.decode(0, bytes)
         if ret == false then 
@@ -39,7 +50,7 @@ if MODE == "agent" then
             return
         end
 
-        serviceLogin = skynet.newservice("test/login")
+        local serviceLogin = skynet.newservice("test/login")
         if serviceLogin ~= nil then
             local res_cmd, ret, err_msg, info = skynet.call(serviceLogin, "lua", cmd, data)
             local res = {
@@ -52,31 +63,20 @@ if MODE == "agent" then
                 res.ret_code = 1
             end
 
-            local msg = convert_msg(res)
-            websocket.write(id, msg, "binary")
+            -- local msg = convert_msg(res)
+            -- websocket.write(id, msg, "binary")
+            sendmsg(id, res)
 
             -- send update msg if succ.
             if ret then
-                local res = {
-                    cmd = "updateAtt_sc",
-                    strs = {
-                        [1] = {
-                            key = "nickname",
-                            value = info.nickname or ""
-                        },
-                    },
-                    nums = {
-                        [1] = {
-                            key = "coin",
-                            value = info.coin
-                        },
-                    },
-                }
-                websocket.write(id, convert_msg(res), "binary")
+                local msg = msg_maker.updateatt_sc()
+                local keys = msg_maker.att_key;
+                table.insert(msg.nums, msg_maker.kv(keys.coin, info.coin))
+                table.insert(msg.strs, msg_maker.kv(keys.nickname, info.nickname or ""))
+                -- websocket.write(id, convert_msg(res), "binary")
+                sendmsg(id, msg)
             end
-            -- websocket.write(id, json.encode(res))
         end
-        -- websocket.write(id, "ret:" .. msg)
     end
 
     function handle.ping(id)
