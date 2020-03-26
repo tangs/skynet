@@ -8,12 +8,12 @@ local sn_helper = require "utils.skynet_helper"
 
 local handle = {}
 local att_whilelist = {
-    "nickname",
+    nickname = true,
 }
 
 local function update_att(info, k, v)
     print("modify_atts_cs: " .. k .. ", " .. v)
-    if att_whilelist[k] ~= nil or true then
+    if att_whilelist[k] ~= nil then
         local data = msg_maker.kv(k, v)
         local mysql = skynet.newservice("test/mysql")
         local ret_code, err = skynet.call(mysql, "lua", "update_info", data, info)

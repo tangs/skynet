@@ -52,7 +52,7 @@ handle.login = function (data)
     if type(data) ~= "table" or 
         type(data.name) ~= "string" or #data.name == 0 or
         type(data.pwd) ~= "string" or #data.pwd == 0 then 
-        skynet.ret(skynet.pack(false, "name of pwd is nil."))
+        skynet.ret(skynet.pack(2, "name of pwd is nil."))
         return
     end
     local sql = string.format("select * from person where name = '%s' and password = '%s';", 
