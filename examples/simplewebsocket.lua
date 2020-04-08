@@ -57,8 +57,9 @@ if MODE == "agent" then
         end
         print("--------------")
     end
-
-    function handle.message(id, bytes)
+    
+    function handle.message(id, bytes, msg_type)
+        assert(msg_type == "binary" or msg_type == "text")
         local function send_msg(msg)
             send_msg1(id, msg)
         end
