@@ -4,13 +4,15 @@ require "skynet.manager"
 local handle = {}
 
 local udids = {}
+local appleacc_name = ""
 
 handle.init = function (accname)
+    appleacc_name = accname
     local mysql = skynet.uniqueservice("mysql")
     local ret = skynet.call(mysql, "lua", "query_udids", accname)
-    if type(ret) == "table" then 
+    if type(ret) == "table" then
         for _, v in ipairs(ret) do
-            if type(v.udid) == "string" then 
+            if type(v.udid) == "string" then
                 table.insert(udids, v.udid)
             end
         end
