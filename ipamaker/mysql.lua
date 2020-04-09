@@ -48,68 +48,66 @@ end
 local handle = {}
 local db = nil
 
-handle.login = function (data)
-    if type(data) ~= "table" or 
-        type(data.name) ~= "string" or #data.name == 0 or
-        type(data.pwd) ~= "string" or #data.pwd == 0 then 
-        skynet.ret(skynet.pack(2, "name of pwd is nil."))
-        return
+handle.query_device = function (udid)
+    if type(udid) ~= "string" or #udid == 0 then 
+        return 1, "udid can't null."
     end
-    local sql = string.format("select * from person where name = '%s' and password = '%s';", 
-        data.name, data.pwd)
+    local sql = string.format("select udid from device where udid = '%s'", 
+        udid)
     local res = db:query(sql)
-    print( dump( res ) )
-    -- skynet.ret(skynet.pack(#res > 0))
-    if #res > 0 then
-        skynet.ret(skynet.pack(0, "", res[1]))
-    else
-        skynet.ret(skynet.pack(1, "invalid name or pwd."))
+    print(dump(res))
+    if (#res == 0) then 
+        return 2, "udid has't registered."
     end
+    return 0
 end
 
-handle.register = function (data)
-    if type(data) ~= "table" or
-        type(data.name) ~= "string" or #data.name == 0 or
-        type(data.pwd) ~= "string" or #data.pwd == 0 then 
-        skynet.ret(skynet.pack(1, "name and pwd can't null."))
-        return
+handle.register_device = function (appleacc_name, dev_info)
+    local udid = dev_info.udid
+    local device_product = dev_info.device_product or ""
+    local device_version = dev_info.device_version or ""
+    if type(udid) ~= "string" or #udid == 0 then 
+        return -1, "udid can't null."
     end
-    local sql = string.format("select name from person where name = '%s';", 
-        data.name, data.pwd)
-    local res = db:query(sql)
-    -- print( dump( res ) )
-    if (#res > 0) then 
-        skynet.ret(skynet.pack(2, "Curent name has registerd."))
-        return 
+    if type(appleacc_name) ~= "string" or #appleacc_name == 0 then 
+        return -2, "appleacc_name can't null."
     end
-    -- sql = string.format("insert into person (name, password) values('%s', '%s');",
-    --     data.name, data.pwd);
 
-    local stmt_insert = db:prepare("insert into person (name, password, nickname) values(?,?,?)")
-    local r = db:execute(stmt_insert, data.name, data.pwd, "中文")
-    print( dump( r ) )
+    local stmt_insert = db:prepare("insert into device (udid, device_product, device_version, appleacc_name) values(?,?,?,?)")
+    local r = db:execute(stmt_insert, udid, device_product, device_version, appleacc_name)
+    print(dump(r))
     if r.affected_rows > 0 then
-        local sql = string.format("select * from person where id = '%s';", 
-            r.insert_id)
-        local res = db:query(sql)
-        print( dump( res ) )
-        skynet.ret(skynet.pack(0, "", res[1]))
+        return 0, ""
     else
-        skynet.ret(skynet.pack(3, "create account fail."))
+        return -3, string.format("register device fail.udid:%s", udid)
     end
 end
 
-handle.update_info = function (data, info)
-    print("mysql handle.update_info.")
-    local sql = string.format("update person set %s='%s' where id=%d", 
-        data.key, data.value, info.id)
-    local res = db:query(sql)
-    print( dump( res ) )
-    if res.badresult then
-        skynet.ret(skynet.pack(1, res.err))
-    else
-        skynet.ret(skynet.pack(0, ""))
+handle.query_app = function (appname, appleacc_name, dev_info)
+    if type(dev_info) ~= "table" or
+        type(appname) ~= "string" or #appname == 0 then 
+        return -1, "invalid param."
     end
+
+    local udid = dev_info.udid
+    if type(udid) ~= "string" or #udid == 0 then 
+        return -2, "udid can't null."
+    end
+
+    if handle.query_device(dev_info.udid) ~= 0 then
+        handle.register_device(appleacc_name, dev_info)
+    end
+
+    local sql = string.format("select download_path from app where udid = '%s' and appname = '%s'", 
+        udid, appname)
+    local res = db:query(sql)
+    print(dump(res))
+
+    if #res == 0 then
+        -- TODO generate app.
+        return 1, "need generate app."
+    end
+    return 0, res[1].download_path or ""
 end
 
 local function init_tables()
@@ -119,23 +117,10 @@ local function init_tables()
 			`udid` varchar(100) COLLATE utf8mb4_bin UNIQUE NOT NULL,
             `device_product` varchar(45) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
             `device_version` varchar(45) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
+            `appleacc_name` varchar(45) COLLATE utf8mb4_bin NOT NULL,
             PRIMARY KEY (`udid`),
 			UNIQUE KEY `id_UNIQUE` (`udid`)
         )ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-    ]])
-    print(dump(res))
-
-    -- create apple acount table
-    res = db:query([[
-        create table if not exists `apple_account` (
-            `apple_id` varchar(100) COLLATE utf8mb4_bin UNIQUE NOT NULL,
-            `pwd` varchar(100) COLLATE utf8mb4_bin NOT NULL,
-            `app_name` varchar(100) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
-            `fastlane_path` varchar(512) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
-            `download_path` varchar(512) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
-            PRIMARY KEY (`apple_id`),
-            UNIQUE KEY `id_UNIQUE` (`apple_id`)
-        )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
     ]])
     print(dump(res))
 
@@ -143,9 +128,9 @@ local function init_tables()
     res = db:query([[
         create table if not exists `app` (
 			`udid` varchar(100) COLLATE utf8mb4_bin NOT NULL,
-            `apple_id` varchar(100) COLLATE utf8mb4_bin NOT NULL,
+            `appname` varchar(100) COLLATE utf8mb4_bin NOT NULL,
             `download_path` varchar(512) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
-            PRIMARY KEY (`udid`, `apple_id`)
+            PRIMARY KEY (`udid`, `appname`)
         )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
     ]])
     print(dump(res))
@@ -157,11 +142,11 @@ skynet.start(function()
 		-- db:query("set charset utf8");
 	end
 	db = mysql.connect({
-		host="127.0.0.1",
-		port=3306,
-		database="ipamaker",
-		user="root",
-		password="111111",
+		host = "127.0.0.1",
+		port = 3306,
+		database = "ipamaker",
+		user = "root",
+		password = "111111",
 		max_packet_size = 1024 * 1024,
 		on_connect = on_connect
 	})
@@ -173,13 +158,11 @@ skynet.start(function()
 
     init_tables()
     
-    skynet.dispatch("lua", function(_, __, cmd, data, info)
+    skynet.dispatch("lua", function(_, __, cmd, ...)
         if type(handle[cmd]) == 'function' then
-            handle[cmd](data, info)
-            skynet.exit()
+            skynet.ret(skynet.pack(handle[cmd](...)))
             return
         end
         skynet.ret(skynet.pack(-1, "invalid cmd: " .. cmd))
-        skynet.exit()
     end)
 end)

@@ -77,18 +77,33 @@ skynet.start(function()
 				table.insert(tmp, string.format("path: %s", path))
 				if query then
 					local q = urllib.parse_query(query)
+					local handle = {
+						url = function (v)
+							local t = io.popen("sh 1.sh " .. v)
+							body = body .. "\n" .. t:read("all")
+						end,
+						cat = function (v)
+							local t = io.popen("cat " .. v)
+							body = body .. "\n" .. t:read("all")
+						end
+					}
 					for k, v in pairs(q) do
 						table.insert(tmp, string.format("query: %s= %s", k,v))
+						if type(handle[k]) == "function" then
+							handle[k](v)
+						end
 					end
-					local t = io.popen("sh 1.sh " .. q["url"])
-					body = body .. "\n" .. t:read("all")
 				end
 				table.insert(tmp, "-----header----")
 				for k,v in pairs(header) do
 					table.insert(tmp, string.format("%s = %s",k,v))
 				end
 				table.insert(tmp, "-----body----\n" .. body)
-				response(id, interface.write, code, table.concat(tmp,"\n"))
+				local res_body = [[<!doctype html><html><head><meta http-equiv="content-type" content="txt/html; charset=utf-8" /><title>Document</title></head><body>]]
+				res_body = res_body .. table.concat(tmp,"<br>")
+				res_body = res_body .. "</body></html>"
+				res_body = res_body:gsub("\n", "<br>")
+				response(id, interface.write, code, res_body, header)
 			end
 		else
 			if url == sockethelper.socket_error then
