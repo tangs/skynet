@@ -110,6 +110,14 @@ handle.query_app = function (appname, appleacc_name, dev_info)
     return 0, res[1].download_path or ""
 end
 
+handle.query_udids = function (appleacc_name)
+    local sql = string.format("select udid from device where appleacc_name = '%s'", 
+    appleacc_name)
+    local res = db:query(sql)
+    print(dump(res))
+    return res
+end
+
 local function init_tables()
     -- create device table
     local res = db:query([[
@@ -163,6 +171,6 @@ skynet.start(function()
             skynet.ret(skynet.pack(handle[cmd](...)))
             return
         end
-        skynet.ret(skynet.pack(-1, "invalid cmd: " .. cmd))
+        skynet.ret(skynet.pack(-100, "invalid cmd: " .. cmd))
     end)
 end)
