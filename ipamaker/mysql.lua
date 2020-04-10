@@ -52,14 +52,14 @@ handle.query_device = function (udid)
     if type(udid) ~= "string" or #udid == 0 then 
         return 1, "udid can't null."
     end
-    local sql = string.format("select udid from device where udid = '%s'", 
+    local sql = string.format("select appleacc_name from device where udid = '%s'", 
         udid)
     local res = db:query(sql)
     print(dump(res))
     if (#res == 0) then 
         return 2, "udid has't registered."
     end
-    return 0
+    return 0, res[1].appleacc_name
 end
 
 handle.register_device = function (appleacc_name, dev_info)
@@ -83,19 +83,19 @@ handle.register_device = function (appleacc_name, dev_info)
     end
 end
 
-handle.query_app = function (appname, appleacc_name, dev_info)
-    if type(dev_info) ~= "table" or
-        type(appname) ~= "string" or #appname == 0 then 
-        return -1, "invalid param."
+handle.query_app = function (appname, udid)
+    if type(appname) ~= "string" or #appname == 0 then 
+        return -1, "invalid appname param."
     end
 
-    local udid = dev_info.udid
+    -- local udid = dev_info.udid
     if type(udid) ~= "string" or #udid == 0 then 
         return -2, "udid can't null."
     end
 
-    if handle.query_device(dev_info.udid) ~= 0 then
-        handle.register_device(appleacc_name, dev_info)
+    local res, data = handle.query_device(udid)
+    if res ~= 0 then
+        return 1, "unregister device."
     end
 
     local sql = string.format("select download_path from app where udid = '%s' and appname = '%s'", 
@@ -104,8 +104,8 @@ handle.query_app = function (appname, appleacc_name, dev_info)
     print(dump(res))
 
     if #res == 0 then
-        -- TODO generate app.
-        return 1, "need generate app."
+        -- need generate app.
+        return 2, data
     end
     return 0, res[1].download_path or ""
 end
